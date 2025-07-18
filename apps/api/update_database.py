@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-from models import create_tables, engine
 from sqlalchemy import text
+
+from models import create_tables, engine
 
 
 def update_database():

@@ -5,14 +5,14 @@ from io import BytesIO
 from typing import Any, Dict, Optional
 
 import markdown2
-from models import Document
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import (Paragraph, SimpleDocTemplate, Spacer, Table,
-                                TableStyle)
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from models import Document
 
 
 class DocumentGenerator:

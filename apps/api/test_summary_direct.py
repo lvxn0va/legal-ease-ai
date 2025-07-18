@@ -7,8 +7,11 @@ sys.path.append("/home/ubuntu/repos/legal-ease-ai/apps/api")
 
 import json
 
-from summary_service import (generate_lease_summary, get_summary_statistics,
-                             validate_summary)
+from summary_service import (
+    generate_lease_summary,
+    get_summary_statistics,
+    validate_summary,
+)
 
 
 def test_summary_generation():

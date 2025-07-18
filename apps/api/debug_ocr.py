@@ -5,9 +5,13 @@ import sys
 
 sys.path.append("/home/ubuntu/repos/legal-ease-ai/apps/api")
 
-from ocr_service import (_extract_from_pdf, _extract_from_pdf_pdfplumber,
-                         extract_text_from_document, get_text_statistics,
-                         validate_extracted_text)
+from ocr_service import (
+    _extract_from_pdf,
+    _extract_from_pdf_pdfplumber,
+    extract_text_from_document,
+    get_text_statistics,
+    validate_extracted_text,
+)
 
 
 def test_pypdf2_directly():

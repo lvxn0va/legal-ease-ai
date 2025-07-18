@@ -9,24 +9,51 @@ from pathlib import Path
 from typing import List
 
 import uvicorn
-from auth import (ACCESS_TOKEN_EXPIRE_MINUTES, authenticate_user_cognito,
-                  create_access_token, get_password_hash,
-                  register_user_cognito, verify_token)
-from document_generator import document_generator
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
-                     UploadFile, status)
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from models import (Document, DocumentFeedback, DocumentStatus, FeedbackType,
-                    User, create_tables, get_db)
-from processing_queue import (add_document_to_queue,
-                              initialize_processing_queue, processing_queue,
-                              shutdown_processing_queue)
-from s3_service import (generate_presigned_download_url,
-                        generate_presigned_upload_url, get_file_size_mb,
-                        validate_file_type)
 from sqlalchemy.orm import Session
+
+from auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    authenticate_user_cognito,
+    create_access_token,
+    get_password_hash,
+    register_user_cognito,
+    verify_token,
+)
+from document_generator import document_generator
+from models import (
+    Document,
+    DocumentFeedback,
+    DocumentStatus,
+    FeedbackType,
+    User,
+    create_tables,
+    get_db,
+)
+from processing_queue import (
+    add_document_to_queue,
+    initialize_processing_queue,
+    processing_queue,
+    shutdown_processing_queue,
+)
+from s3_service import (
+    generate_presigned_download_url,
+    generate_presigned_upload_url,
+    get_file_size_mb,
+    validate_file_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -506,6 +533,7 @@ async def local_upload(s3_key: str, request: Request):
     """
     try:
         from fastapi import Request
+
         from s3_service import LOCAL_STORAGE_PATH
 
         local_file_path = Path(LOCAL_STORAGE_PATH) / s3_key
