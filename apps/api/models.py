@@ -1,9 +1,14 @@
 import os
-from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Enum as SQLEnum, JSON
+from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Enum as SQLEnum, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from enum import Enum
+
+class FeedbackType(str, Enum):
+    THUMBS_UP = "thumbs_up"
+    THUMBS_DOWN = "thumbs_down"
+    ERROR_REPORT = "error_report"
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./legal_ease.db")
 
@@ -49,6 +54,17 @@ class Document(Base):
     ai_summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class DocumentFeedback(Base):
+    __tablename__ = "document_feedback"
+    
+    id = Column(String, primary_key=True, index=True)
+    document_id = Column(String, ForeignKey("documents.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    feedback_type = Column(SQLEnum(FeedbackType), nullable=False)
+    is_positive = Column(Boolean, nullable=True)
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 def get_db():
     db = SessionLocal()

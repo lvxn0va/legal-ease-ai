@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Form, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, status, Form, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 import uvicorn
@@ -11,12 +11,14 @@ from typing import List
 from pathlib import Path
 import shutil
 import os
+import io
+import logging
 
 from auth import (
     register_user_cognito, authenticate_user_cognito, create_access_token, 
     verify_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from models import get_db, create_tables, User, Document, DocumentStatus
+from models import get_db, create_tables, User, Document, DocumentStatus, DocumentFeedback, FeedbackType
 from s3_service import (
     generate_presigned_upload_url, 
     generate_presigned_download_url,
@@ -29,6 +31,9 @@ from processing_queue import (
     shutdown_processing_queue, 
     processing_queue
 )
+from document_generator import document_generator
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="LegalEase AI API",
@@ -217,7 +222,7 @@ async def get_upload_url(
 
 @app.post("/documents")
 async def create_document(
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
     filename: str = Form(...),
     original_filename: str = Form(...),
     file_size: str = Form(None),
@@ -230,24 +235,27 @@ async def create_document(
     document_id = str(uuid.uuid4())
     
     if s3_bucket == "local-storage":
-        try:
-            from s3_service import LOCAL_STORAGE_PATH
-            
-            uploads_dir = Path(LOCAL_STORAGE_PATH)
-            uploads_dir.mkdir(parents=True, exist_ok=True)
-            
-            local_file_path = uploads_dir / filename
-            with open(local_file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+        if file is not None:
+            try:
+                from s3_service import LOCAL_STORAGE_PATH
                 
-            print(f"Saved file to local storage: {local_file_path}")
-            
-        except Exception as e:
-            print(f"Failed to save file to local storage: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save file: {str(e)}"
-            )
+                uploads_dir = Path(LOCAL_STORAGE_PATH)
+                uploads_dir.mkdir(parents=True, exist_ok=True)
+                
+                local_file_path = uploads_dir / filename
+                with open(local_file_path, "wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+                    
+                print(f"Saved file to local storage: {local_file_path}")
+                
+            except Exception as e:
+                print(f"Failed to save file to local storage: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to save file: {str(e)}"
+                )
+        else:
+            print(f"File already uploaded to local storage at: {s3_key}")
     
     db_document = Document(
         id=document_id,
@@ -325,6 +333,14 @@ async def get_document(
             detail="Document not found"
         )
     
+    extracted_lease_data = None
+    if document.extracted_lease_data:
+        try:
+            import json
+            extracted_lease_data = json.loads(document.extracted_lease_data)
+        except (json.JSONDecodeError, TypeError):
+            extracted_lease_data = None
+    
     return {
         "id": document.id,
         "filename": document.filename,
@@ -333,7 +349,10 @@ async def get_document(
         "mimeType": document.mime_type,
         "status": document.status.value,
         "createdAt": document.created_at.isoformat(),
-        "updatedAt": document.updated_at.isoformat()
+        "updatedAt": document.updated_at.isoformat(),
+        "extractedText": document.extracted_text,
+        "extractedLeaseData": extracted_lease_data,
+        "aiSummary": document.ai_summary
     }
 
 @app.get("/documents/{document_id}/download")
@@ -388,33 +407,102 @@ async def delete_document(
         db.commit()
         
         return {"message": "Document deleted successfully"}
-        
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete document: {str(e)}"
         )
 
+@app.get("/documents/{document_id}/download/pdf")
+async def download_document_pdf(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download document abstract as PDF"""
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    if document.status != DocumentStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Document processing not completed")
+    
+    try:
+        pdf_buffer = document_generator.generate_pdf(document)
+        
+        filename = f"{document.original_filename or document.filename}_abstract.pdf"
+        
+        return StreamingResponse(
+            io.BytesIO(pdf_buffer.read()),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate PDF for document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate PDF")
+
+@app.get("/documents/{document_id}/download/markdown")
+async def download_document_markdown(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download document abstract as Markdown"""
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    if document.status != DocumentStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Document processing not completed")
+    
+    try:
+        markdown_content = document_generator.generate_markdown(document)
+        
+        filename = f"{document.original_filename or document.filename}_abstract.md"
+        
+        return StreamingResponse(
+            io.BytesIO(markdown_content.encode('utf-8')),
+            media_type="text/markdown",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate Markdown for document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate Markdown")
+
 @app.put("/documents/local-upload/{s3_key:path}")
 async def local_upload(
     s3_key: str,
-    file: UploadFile = File(...)
+    request: Request
 ):
     """
     Handle local file uploads for development
     """
     try:
         from s3_service import LOCAL_STORAGE_PATH
+        from fastapi import Request
         
         local_file_path = Path(LOCAL_STORAGE_PATH) / s3_key
         local_file_path.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(local_file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        file_data = await request.body()
         
+        with open(local_file_path, "wb") as buffer:
+            buffer.write(file_data)
+        
+        print(f"Successfully uploaded file to: {local_file_path}")
         return {"message": "File uploaded successfully"}
         
     except Exception as e:
+        print(f"Failed to upload file: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload file: {str(e)}"
@@ -446,6 +534,110 @@ async def local_download(s3_key: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to download file: {str(e)}"
         )
+
+@app.post("/documents/{document_id}/feedback")
+async def submit_feedback(
+    document_id: str,
+    feedback_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    feedback_type_str = feedback_data.get("type")
+    is_positive = feedback_data.get("is_positive")
+    comment = feedback_data.get("comment", "")
+    
+    if feedback_type_str not in ["thumbs_up", "thumbs_down", "error_report"]:
+        raise HTTPException(status_code=400, detail="Invalid feedback type")
+    
+    feedback_type = FeedbackType(feedback_type_str)
+    
+    existing_feedback = db.query(DocumentFeedback).filter(
+        DocumentFeedback.document_id == document_id,
+        DocumentFeedback.user_id == current_user.id,
+        DocumentFeedback.feedback_type == feedback_type
+    ).first()
+    
+    if existing_feedback:
+        existing_feedback.is_positive = is_positive
+        existing_feedback.comment = comment
+        existing_feedback.created_at = datetime.utcnow()
+        feedback = existing_feedback
+    else:
+        feedback = DocumentFeedback(
+            id=str(uuid.uuid4()),
+            document_id=document_id,
+            user_id=current_user.id,
+            feedback_type=feedback_type,
+            is_positive=is_positive,
+            comment=comment
+        )
+        db.add(feedback)
+    
+    try:
+        db.commit()
+        db.refresh(feedback)
+        
+        return {
+            "message": "Thank you for your feedback!",
+            "feedback_id": feedback.id,
+            "created_at": feedback.created_at.isoformat()
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save feedback: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save feedback")
+
+@app.get("/documents/{document_id}/feedback")
+async def get_document_feedback(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    feedback_list = db.query(DocumentFeedback).filter(
+        DocumentFeedback.document_id == document_id,
+        DocumentFeedback.user_id == current_user.id
+    ).all()
+    
+    feedback_summary = {
+        "thumbs_up": None,
+        "thumbs_down": None,
+        "error_reports": []
+    }
+    
+    for feedback in feedback_list:
+        if feedback.feedback_type == FeedbackType.THUMBS_UP:
+            feedback_summary["thumbs_up"] = {
+                "is_positive": feedback.is_positive,
+                "created_at": feedback.created_at.isoformat()
+            }
+        elif feedback.feedback_type == FeedbackType.THUMBS_DOWN:
+            feedback_summary["thumbs_down"] = {
+                "is_positive": feedback.is_positive,
+                "created_at": feedback.created_at.isoformat()
+            }
+        elif feedback.feedback_type == FeedbackType.ERROR_REPORT:
+            feedback_summary["error_reports"].append({
+                "comment": feedback.comment,
+                "created_at": feedback.created_at.isoformat()
+            })
+    
+    return feedback_summary
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
