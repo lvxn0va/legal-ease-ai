@@ -180,7 +180,7 @@ export default function DocumentUpload({ onUploadSuccess, onUploadError }: Docum
     }
 
     await uploadFile(file);
-  }, [onUploadSuccess, onUploadError]);
+  }, [uploadFile, onUploadSuccess, onUploadError]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
