@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from models import Document, DocumentStatus, get_db
 from ocr_service import extract_text_from_document, validate_extracted_text, get_text_statistics
 from nlp_service import extract_lease_terms, validate_extracted_data, get_extraction_statistics
+from summary_service import generate_lease_summary, validate_summary, get_summary_statistics
 import uuid
 from pathlib import Path
 import os
@@ -138,6 +139,30 @@ class ProcessingQueue:
                         logger.info(f"NLP extraction completed for document {document_id}: "
                                   f"{validation['confidence_score']:.2%} confidence, "
                                   f"{extraction_stats['populated_fields']}/{extraction_stats['total_fields']} fields populated")
+                    
+                    logger.info(f"Starting AI summary generation for document {document_id}")
+                    summary_result = generate_lease_summary(extracted_text, nlp_result)
+                    
+                    if summary_result.get('error'):
+                        logger.warning(f"Summary generation had issues for document {document_id}: {summary_result['error']}")
+                        document.ai_summary = "Summary generation failed"
+                    else:
+                        generated_summary = summary_result.get('summary')
+                        if generated_summary:
+                            summary_validation = validate_summary(generated_summary)
+                            summary_stats = get_summary_statistics(generated_summary)
+                            
+                            if summary_validation['is_valid']:
+                                document.ai_summary = generated_summary
+                                logger.info(f"AI summary generated for document {document_id}: "
+                                          f"{summary_stats['word_count']} words, "
+                                          f"quality score: {summary_validation['quality_score']:.2f}")
+                            else:
+                                document.ai_summary = "Generated summary failed quality validation"
+                                logger.warning(f"Summary quality validation failed for document {document_id}: {summary_validation['issues']}")
+                        else:
+                            document.ai_summary = "No summary could be generated"
+                            logger.warning(f"No summary generated for document {document_id}")
                     
                     document.status = DocumentStatus.COMPLETED
                 else:
