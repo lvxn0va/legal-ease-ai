@@ -27,9 +27,9 @@ jobs:
       run: |
         cd apps/api
         pip install flake8 black isort
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        black --check .
-        isort --check-only .
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv,__pycache__,.git
+        black --check . --exclude="venv|__pycache__|\.git"
+        isort --check-only . --skip=venv --skip=__pycache__
     
     - name: Run backend tests
       run: |
@@ -46,10 +46,12 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
+        cache: 'pnpm'
     
     - name: Install pnpm
-      run: npm install -g pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
     
     - name: Install dependencies
       run: pnpm install
