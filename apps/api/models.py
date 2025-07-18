@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Enum as SQLEnum
+from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Enum as SQLEnum, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -44,6 +44,9 @@ class Document(Base):
     status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.UPLOADED)
     extracted_text = Column(Text, nullable=True)
     extraction_error = Column(Text, nullable=True)
+    extracted_lease_data = Column(JSON, nullable=True)
+    nlp_extraction_error = Column(Text, nullable=True)
+    ai_summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

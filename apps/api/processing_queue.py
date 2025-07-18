@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from models import Document, DocumentStatus, get_db
 from ocr_service import extract_text_from_document, validate_extracted_text, get_text_statistics
+from nlp_service import extract_lease_terms, validate_extracted_data, get_extraction_statistics
 import uuid
 from pathlib import Path
 import os
@@ -115,12 +116,30 @@ class ProcessingQueue:
                 
                 if validate_extracted_text(extracted_text):
                     document.extracted_text = extracted_text
-                    document.status = DocumentStatus.COMPLETED
                     document.extraction_error = None
                     
                     stats = get_text_statistics(extracted_text)
                     logger.info(f"Successfully extracted text from document {document_id}: "
                               f"{stats['word_count']} words, {stats['character_count']} characters")
+                    
+                    logger.info(f"Starting NLP extraction for document {document_id}")
+                    nlp_result = extract_lease_terms(extracted_text)
+                    
+                    if nlp_result.get('error'):
+                        document.nlp_extraction_error = nlp_result['error']
+                        logger.error(f"NLP extraction failed for document {document_id}: {nlp_result['error']}")
+                    else:
+                        document.extracted_lease_data = nlp_result
+                        document.nlp_extraction_error = None
+                        
+                        validation = validate_extracted_data(nlp_result)
+                        extraction_stats = get_extraction_statistics(nlp_result)
+                        
+                        logger.info(f"NLP extraction completed for document {document_id}: "
+                                  f"{validation['confidence_score']:.2%} confidence, "
+                                  f"{extraction_stats['populated_fields']}/{extraction_stats['total_fields']} fields populated")
+                    
+                    document.status = DocumentStatus.COMPLETED
                 else:
                     document.status = DocumentStatus.FAILED
                     document.extraction_error = "Extracted text failed quality validation (too short or low quality)"
