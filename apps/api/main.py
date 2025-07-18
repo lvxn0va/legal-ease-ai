@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 import uvicorn
 import uuid
+import asyncio
 from typing import List
 from pathlib import Path
 import shutil
@@ -21,6 +22,12 @@ from s3_service import (
     generate_presigned_download_url,
     validate_file_type,
     get_file_size_mb
+)
+from processing_queue import (
+    add_document_to_queue, 
+    initialize_processing_queue, 
+    shutdown_processing_queue, 
+    processing_queue
 )
 
 app = FastAPI(
@@ -42,6 +49,11 @@ security = HTTPBearer()
 @app.on_event("startup")
 async def startup_event():
     create_tables()
+    asyncio.create_task(initialize_processing_queue())
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await shutdown_processing_queue()
 
 @app.get("/")
 async def root():
@@ -49,7 +61,12 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "legal-ease-ai-api"}
+    return {
+        "status": "healthy", 
+        "service": "legal-ease-ai-api",
+        "queue_size": processing_queue.get_queue_size(),
+        "processing_count": processing_queue.get_processing_count()
+    }
 
 @app.post("/auth/register")
 async def register(
@@ -226,6 +243,17 @@ async def create_document(
     db.add(db_document)
     db.commit()
     db.refresh(db_document)
+    
+    try:
+        job_id = add_document_to_queue(
+            document_id=db_document.id,
+            user_id=current_user.id,
+            s3_key=s3_key,
+            s3_bucket=s3_bucket
+        )
+        print(f"Added document {db_document.id} to processing queue with job ID: {job_id}")
+    except Exception as e:
+        print(f"Failed to add document to processing queue: {e}")
     
     return {
         "id": db_document.id,
