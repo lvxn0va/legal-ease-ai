@@ -33,6 +33,14 @@ This document outlines the complete fullstack architecture for LegalEase AI, inc
 
 This unified approach combines what would traditionally be separate backend and frontend architecture documents, streamlining the development process for modern fullstack applications where these concerns are increasingly intertwined.
 
+### **Development Prerequisites**
+
+Before beginning development, developers should familiarize themselves with the sample lease documents and abstracts located in `/samples/`. These files provide essential context for understanding:
+
+- **Lease Document Structure**: Review `/samples/lease-documents/` to understand the complexity and variety of commercial lease formats that the AI must process
+- **Expected Abstract Quality**: Examine `/samples/lease-abstracts/` to understand the target output format, level of detail, and professional standards expected from the AI processing pipeline
+- **Key Data Points**: Use the sample abstracts to identify the critical lease terms that must be extracted (parties, dates, rent schedules, renewal options, etc.)
+
 ### **Starter Template or Existing Project**
 
 The PRD's "Technical Assumptions" specified a monorepo structure using a tool like **Nx or Turborepo**. We will proceed with **Nx** as our monorepo framework, utilizing its plugins for Next.js and Python to provide pre-configured application starters.
@@ -153,6 +161,7 @@ graph TD
 ### **3\. LeaseAbstract**
 
 * **Purpose:** Stores the structured data and summary extracted from a lease document by the AI pipeline.  
+* **Reference Implementation:** See `/samples/lease-abstracts/` for examples of professionally prepared lease abstracts that demonstrate the expected output quality and structure
 * **TypeScript Interface (libs/shared/src/types/lease-abstract.ts)**  
   TypeScript  
   export interface ExtractedLeaseData {  
@@ -170,6 +179,8 @@ graph TD
     extractedData: ExtractedLeaseData;  
     createdAt: string; // ISO 8601 Date  
   }
+
+**Development Note:** The sample files in `/samples/` provide input/output pairs for testing AI accuracy. Use these to validate that extracted data matches the professional standards demonstrated in the sample abstracts.
 
 ---
 
@@ -253,7 +264,36 @@ paths:
 
 ---
 
-*(Additional sections for Components, Core Workflows, Database Schema, Frontend/Backend Architecture, Project Structure, Development Workflow, Deployment, Security/Performance, Testing, Coding Standards, Error Handling, Monitoring, and Checklist Results are included in the full document)*
+## **Development Workflow & Setup**
+
+### **Getting Started**
+
+1. **Review Sample Files**: Before writing any code, examine the files in `/samples/` to understand:
+   - Input document complexity (`/samples/lease-documents/`)
+   - Expected output quality (`/samples/lease-abstracts/`)
+   - Key data extraction requirements
+
+2. **Monorepo Setup**: Initialize the Nx monorepo with Next.js and FastAPI applications
+3. **AI Processing Pipeline**: Use sample documents for testing OCR and NLP accuracy
+4. **Quality Standards**: Reference sample abstracts to ensure AI output meets professional standards
+
+### **Testing with Sample Data**
+
+- **Unit Tests**: Use sample lease documents as test inputs for AI processing functions
+- **Integration Tests**: Validate end-to-end workflow using sample document/abstract pairs
+- **Accuracy Validation**: Compare AI-generated abstracts against professional samples in `/samples/lease-abstracts/`
+- **Performance Testing**: Measure processing time using the variety of document sizes in samples
+
+### **AI Development Guidelines**
+
+- **Training Reference**: Sample abstracts demonstrate the level of detail and organization required
+- **Key Data Points**: Extract the same categories of information shown in sample abstracts
+- **Output Formatting**: Match the professional presentation style of sample abstracts
+- **Error Handling**: Test edge cases using the variety of lease structures in sample documents
+
+---
+
+*(Additional sections for Components, Core Workflows, Database Schema, Frontend/Backend Architecture, Project Structure, Deployment, Security/Performance, Testing, Coding Standards, Error Handling, Monitoring, and Checklist Results are included in the full document)*
 
 ---
 
