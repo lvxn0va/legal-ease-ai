@@ -7,7 +7,7 @@
     "dev:api": "nx serve api",
     "build:web": "nx build web",
     "test": "nx test",
-    "lint": "nx lint"
+    "lint": "nx run-many --target=lint --projects=web,shared"
   },
   "private": true,
   "dependencies": {

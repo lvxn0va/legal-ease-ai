@@ -11,11 +11,11 @@ const compat = new FlatCompat({
 });
 
 export default [
+  {
+    ignores: ['.next/**/*', 'node_modules/**/*', 'dist/**/*'],
+  },
   ...fixupConfigRules(compat.extends('next')),
   ...fixupConfigRules(compat.extends('next/core-web-vitals')),
   ...baseConfig,
   ...nx.configs['flat/react-typescript'],
-  {
-    ignores: ['.next/**/*'],
-  },
 ];
