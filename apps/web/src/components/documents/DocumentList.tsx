@@ -133,6 +133,10 @@ export default function DocumentList({ refreshTrigger, onDocumentSelect }: Docum
     fetchDocuments();
   }, [refreshTrigger]);
 
+  const sortedDocuments = [...documents].sort((a, b) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -155,13 +159,14 @@ export default function DocumentList({ refreshTrigger, onDocumentSelect }: Docum
       <div className="text-center py-8">
         <div className="text-gray-400 text-6xl mb-4">📄</div>
         <p className="text-gray-500">No documents uploaded yet</p>
+        <p className="text-sm text-gray-400 mt-2">Upload your first lease document to get started</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {documents.map((document) => (
+      {sortedDocuments.map((document) => (
         <div
           key={document.id}
           className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
