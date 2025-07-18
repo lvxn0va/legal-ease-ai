@@ -217,6 +217,7 @@ async def get_upload_url(
 
 @app.post("/documents")
 async def create_document(
+    file: UploadFile = File(...),
     filename: str = Form(...),
     original_filename: str = Form(...),
     file_size: str = Form(None),
@@ -227,6 +228,26 @@ async def create_document(
     db: Session = Depends(get_db)
 ):
     document_id = str(uuid.uuid4())
+    
+    if s3_bucket == "local-storage":
+        try:
+            from s3_service import LOCAL_STORAGE_PATH
+            
+            uploads_dir = Path(LOCAL_STORAGE_PATH)
+            uploads_dir.mkdir(parents=True, exist_ok=True)
+            
+            local_file_path = uploads_dir / filename
+            with open(local_file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+                
+            print(f"Saved file to local storage: {local_file_path}")
+            
+        except Exception as e:
+            print(f"Failed to save file to local storage: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to save file: {str(e)}"
+            )
     
     db_document = Document(
         id=document_id,

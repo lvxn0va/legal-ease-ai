@@ -5,8 +5,10 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from models import Document, DocumentStatus, get_db
+from ocr_service import extract_text_from_document, validate_extracted_text, get_text_statistics
 import uuid
 from pathlib import Path
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -76,22 +78,57 @@ class ProcessingQueue:
                 await asyncio.sleep(1)
     
     async def process_job(self, job: Dict[str, Any]):
-        """Process a single document job"""
+        """Process a single document job with OCR text extraction"""
         document_id = job["document_id"]
+        s3_key = job["s3_key"]
+        s3_bucket = job["s3_bucket"]
         logger.info(f"Processing job {job['id']} for document {document_id}")
         
         db = next(get_db())
         try:
-            await asyncio.sleep(2)
-            
             document = db.query(Document).filter(Document.id == document_id).first()
-            if document:
-                document.status = DocumentStatus.COMPLETED
-                document.updated_at = datetime.utcnow()
-                db.commit()
-                logger.info(f"Completed processing for document {document_id}")
-            else:
+            if not document:
                 logger.error(f"Document {document_id} not found")
+                return
+            
+            if s3_bucket == "local-storage":
+                from s3_service import LOCAL_STORAGE_PATH
+                
+                file_path = os.path.join(LOCAL_STORAGE_PATH, document.filename)
+                if not os.path.exists(file_path):
+                    file_path = os.path.join(LOCAL_STORAGE_PATH, s3_key.split('/')[-1])
+                    if not os.path.exists(file_path):
+                        raise FileNotFoundError(f"Local file not found: {file_path} (also tried {os.path.join(LOCAL_STORAGE_PATH, document.filename)})")
+            else:
+                raise NotImplementedError("S3 file processing not implemented in local development")
+            
+            logger.info(f"Extracting text from {file_path}")
+            
+            extraction_result = extract_text_from_document(file_path, document.mime_type)
+            
+            if extraction_result['error']:
+                document.status = DocumentStatus.FAILED
+                document.extraction_error = extraction_result['error']
+                logger.error(f"Text extraction failed for document {document_id}: {extraction_result['error']}")
+            else:
+                extracted_text = extraction_result['text']
+                
+                if validate_extracted_text(extracted_text):
+                    document.extracted_text = extracted_text
+                    document.status = DocumentStatus.COMPLETED
+                    document.extraction_error = None
+                    
+                    stats = get_text_statistics(extracted_text)
+                    logger.info(f"Successfully extracted text from document {document_id}: "
+                              f"{stats['word_count']} words, {stats['character_count']} characters")
+                else:
+                    document.status = DocumentStatus.FAILED
+                    document.extraction_error = "Extracted text failed quality validation (too short or low quality)"
+                    logger.warning(f"Extracted text for document {document_id} failed quality validation")
+            
+            document.updated_at = datetime.utcnow()
+            db.commit()
+            logger.info(f"Completed processing for document {document_id} with status: {document.status.value}")
                 
         except Exception as e:
             logger.error(f"Failed to process document {document_id}: {e}")
@@ -106,6 +143,7 @@ class ProcessingQueue:
                         logger.info(f"Retrying job {job['id']} (attempt {job['retry_count']})")
                     else:
                         document.status = DocumentStatus.FAILED
+                        document.extraction_error = f"Processing failed after max retries: {str(e)}"
                         document.updated_at = datetime.utcnow()
                         db.commit()
                         logger.error(f"Document {document_id} processing failed after max retries")

@@ -42,6 +42,8 @@ class Document(Base):
     s3_key = Column(String, nullable=False)
     s3_bucket = Column(String, nullable=False)
     status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.UPLOADED)
+    extracted_text = Column(Text, nullable=True)
+    extraction_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
