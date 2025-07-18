@@ -8,13 +8,22 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from models import Document, DocumentStatus, get_db
-from nlp_service import (extract_lease_terms, get_extraction_statistics,
-                         validate_extracted_data)
-from ocr_service import (extract_text_from_document, get_text_statistics,
-                         validate_extracted_text)
+from nlp_service import (
+    extract_lease_terms,
+    get_extraction_statistics,
+    validate_extracted_data,
+)
+from ocr_service import (
+    extract_text_from_document,
+    get_text_statistics,
+    validate_extracted_text,
+)
 from sqlalchemy.orm import Session
-from summary_service import (generate_lease_summary, get_summary_statistics,
-                             validate_summary)
+from summary_service import (
+    generate_lease_summary,
+    get_summary_statistics,
+    validate_summary,
+)
 
 logger = logging.getLogger(__name__)
 
