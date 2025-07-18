@@ -9,49 +9,23 @@ from pathlib import Path
 from typing import List
 
 import uvicorn
-from auth import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    authenticate_user_cognito,
-    create_access_token,
-    get_password_hash,
-    register_user_cognito,
-    verify_token,
-)
+from auth import (ACCESS_TOKEN_EXPIRE_MINUTES, authenticate_user_cognito,
+                  create_access_token, get_password_hash,
+                  register_user_cognito, verify_token)
 from document_generator import document_generator
-from fastapi import (
-    Depends,
-    FastAPI,
-    File,
-    Form,
-    HTTPException,
-    Request,
-    UploadFile,
-    status,
-)
+from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
+                     UploadFile, status)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from models import (
-    Document,
-    DocumentFeedback,
-    DocumentStatus,
-    FeedbackType,
-    User,
-    create_tables,
-    get_db,
-)
-from processing_queue import (
-    add_document_to_queue,
-    initialize_processing_queue,
-    processing_queue,
-    shutdown_processing_queue,
-)
-from s3_service import (
-    generate_presigned_download_url,
-    generate_presigned_upload_url,
-    get_file_size_mb,
-    validate_file_type,
-)
+from models import (Document, DocumentFeedback, DocumentStatus, FeedbackType,
+                    User, create_tables, get_db)
+from processing_queue import (add_document_to_queue,
+                              initialize_processing_queue, processing_queue,
+                              shutdown_processing_queue)
+from s3_service import (generate_presigned_download_url,
+                        generate_presigned_upload_url, get_file_size_mb,
+                        validate_file_type)
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)

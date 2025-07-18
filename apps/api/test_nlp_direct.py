@@ -7,11 +7,8 @@ sys.path.append("/home/ubuntu/repos/legal-ease-ai/apps/api")
 
 import json
 
-from nlp_service import (
-    extract_lease_terms,
-    get_extraction_statistics,
-    validate_extracted_data,
-)
+from nlp_service import (extract_lease_terms, get_extraction_statistics,
+                         validate_extracted_data)
 
 
 def test_nlp_with_sample_text():
