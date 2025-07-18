@@ -96,11 +96,11 @@ class ProcessingQueue:
             if s3_bucket == "local-storage":
                 from s3_service import LOCAL_STORAGE_PATH
                 
-                file_path = os.path.join(LOCAL_STORAGE_PATH, document.filename)
+                # So we should use it directly with LOCAL_STORAGE_PATH
+                file_path = os.path.join(LOCAL_STORAGE_PATH, s3_key)
+                
                 if not os.path.exists(file_path):
-                    file_path = os.path.join(LOCAL_STORAGE_PATH, s3_key.split('/')[-1])
-                    if not os.path.exists(file_path):
-                        raise FileNotFoundError(f"Local file not found: {file_path} (also tried {os.path.join(LOCAL_STORAGE_PATH, document.filename)})")
+                    raise FileNotFoundError(f"Local file not found at expected path: {file_path}")
             else:
                 raise NotImplementedError("S3 file processing not implemented in local development")
             

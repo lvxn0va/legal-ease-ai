@@ -29,29 +29,40 @@ def generate_presigned_upload_url(
     expires_in: int = 3600
 ) -> dict:
     """
-    Generate a presigned URL for uploading a file to S3
+    Generate a presigned URL for uploading a file to S3 or local storage
     """
     try:
         file_extension = filename.split('.')[-1] if '.' in filename else ''
         unique_filename = f"{uuid.uuid4()}.{file_extension}" if file_extension else str(uuid.uuid4())
-        s3_key = f"documents/{user_id}/{unique_filename}"
+        s3_key = f"documents/local/{unique_filename}"
         
-        presigned_url = s3_client.generate_presigned_url(
-            'put_object',
-            Params={
-                'Bucket': S3_BUCKET_NAME,
-                'Key': s3_key,
-                'ContentType': content_type
-            },
-            ExpiresIn=expires_in
-        )
-        
-        return {
-            'upload_url': presigned_url,
-            's3_key': s3_key,
-            's3_bucket': S3_BUCKET_NAME,
-            'unique_filename': unique_filename
-        }
+        if USE_S3:
+            s3_key = f"documents/{user_id}/{unique_filename}"
+            presigned_url = s3_client.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket': S3_BUCKET_NAME,
+                    'Key': s3_key,
+                    'ContentType': content_type
+                },
+                ExpiresIn=expires_in
+            )
+            
+            return {
+                'upload_url': presigned_url,
+                's3_key': s3_key,
+                's3_bucket': S3_BUCKET_NAME,
+                'unique_filename': unique_filename
+            }
+        else:
+            local_upload_url = f"http://localhost:8000/documents/local-upload/{s3_key}"
+            
+            return {
+                'upload_url': local_upload_url,
+                's3_key': s3_key,
+                's3_bucket': 'local-storage',
+                'unique_filename': unique_filename
+            }
         
     except ClientError as e:
         raise HTTPException(

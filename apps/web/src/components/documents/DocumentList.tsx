@@ -197,8 +197,20 @@ export default function DocumentList({ refreshTrigger, onDocumentSelect }: Docum
 
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => onDocumentSelect && onDocumentSelect(document)}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                onClick={() => {
+                  if (document.status === 'completed') {
+                    window.location.href = `/document/${document.id}`;
+                  } else {
+                    onDocumentSelect && onDocumentSelect(document);
+                  }
+                }}
+                className={`text-sm font-medium ${
+                  document.status === 'completed'
+                    ? 'text-blue-600 hover:text-blue-800 cursor-pointer'
+                    : 'text-gray-400 cursor-not-allowed'
+                }`}
+                disabled={document.status !== 'completed'}
+                title={document.status === 'completed' ? 'View abstract' : 'Document not ready'}
               >
                 View
               </button>
