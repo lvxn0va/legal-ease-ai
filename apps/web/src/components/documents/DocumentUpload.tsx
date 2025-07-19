@@ -50,7 +50,8 @@ export default function DocumentUpload({ onUploadSuccess, onUploadError }: Docum
       uploadUrlFormData.append('filename', file.name);
       uploadUrlFormData.append('content_type', file.type);
 
-      const uploadUrlResponse = await fetch('http://localhost:8000/documents/upload-url', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const uploadUrlResponse = await fetch(`${apiUrl}/documents/upload-url`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -113,7 +114,7 @@ export default function DocumentUpload({ onUploadSuccess, onUploadError }: Docum
         const uploadFormData = new FormData();
         uploadFormData.append('file', file);
 
-        const localUploadResponse = await fetch(`http://localhost:8000/documents/local-upload/${s3Key}`, {
+        const localUploadResponse = await fetch(`${apiUrl}/documents/local-upload/${s3Key}`, {
           method: 'PUT',
           body: uploadFormData
         });

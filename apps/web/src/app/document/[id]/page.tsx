@@ -54,7 +54,8 @@ export default function DocumentAbstractPage() {
           return;
         }
 
-        const response = await fetch(`http://localhost:8000/documents/${documentId}`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiUrl}/documents/${documentId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -470,7 +471,7 @@ export default function DocumentAbstractPage() {
                       Options & Terms
                     </h4>
                     <dl className="space-y-2">
-                      {extractedData.options.renewalOptions && extractedData.options.renewalOptions.length > 0 && (
+                      {extractedData.options.renewalOptions && Array.isArray(extractedData.options.renewalOptions) && extractedData.options.renewalOptions.length > 0 && (
                         <div>
                           <dt className="text-sm font-medium text-gray-500">Renewal Options</dt>
                           <dd className="text-sm text-gray-900">
@@ -482,7 +483,7 @@ export default function DocumentAbstractPage() {
                           </dd>
                         </div>
                       )}
-                      {extractedData.options.terminationClauses && extractedData.options.terminationClauses.length > 0 && (
+                      {extractedData.options.terminationClauses && Array.isArray(extractedData.options.terminationClauses) && extractedData.options.terminationClauses.length > 0 && (
                         <div>
                           <dt className="text-sm font-medium text-gray-500">Termination Clauses</dt>
                           <dd className="text-sm text-gray-900">
@@ -510,7 +511,7 @@ export default function DocumentAbstractPage() {
                 </div>
               )}
 
-              {(!extractedData.parties && !extractedData.dates && !extractedData.rent && !extractedData.options && !extractedData.use_clauses) && (
+              {(!extractedData.parties && !extractedData.dates && !extractedData.rent && !extractedData.options && !extractedData.use_clauses && !extractedData.assignment) && (
                 <div className="text-center py-8">
                   <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h4 className="text-lg font-medium text-gray-900 mb-2">No Extracted Data Available</h4>

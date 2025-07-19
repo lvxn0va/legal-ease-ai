@@ -19,6 +19,7 @@ interface DocumentListProps {
 }
 
 export default function DocumentList({ refreshTrigger, onDocumentSelect }: DocumentListProps) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,7 +31,8 @@ export default function DocumentList({ refreshTrigger, onDocumentSelect }: Docum
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('http://localhost:8000/documents', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/documents`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -61,7 +63,7 @@ export default function DocumentList({ refreshTrigger, onDocumentSelect }: Docum
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`http://localhost:8000/documents/${documentId}`, {
+      const response = await fetch(`${apiUrl}/documents/${documentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -86,7 +88,7 @@ export default function DocumentList({ refreshTrigger, onDocumentSelect }: Docum
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`http://localhost:8000/documents/${documentId}/download`, {
+      const response = await fetch(`${apiUrl}/documents/${documentId}/download`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

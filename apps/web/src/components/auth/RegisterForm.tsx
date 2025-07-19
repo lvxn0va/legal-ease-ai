@@ -74,7 +74,7 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
       submitData.append('first_name', formData.firstName);
       submitData.append('last_name', formData.lastName);
 
-      const response = await fetch('http://localhost:8000/auth/register', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
         method: 'POST',
         body: submitData,
       });
